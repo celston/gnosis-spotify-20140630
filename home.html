@@ -1,0 +1,16 @@
+<h2>Home</h2>
+
+<table class="table table-striped table-bordered">
+    <thead>
+    <tr>
+        <th>Artist</th>
+        <th>Name</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr ng-repeat="track in recentTracks">
+        <td>{{track.artist['#text']}}</td>
+        <td>{{track.name}}</td>
+    </tr>
+    </tbody>
+</table>
