@@ -18,27 +18,15 @@
   ],
   "BundleType": "Application",
   "BundleVersion": "0.2",
-  "DefaultTabs": [
-    {
-      "arguments": "index",
-      "title": {
-        "en": "Home"
-      }
-    },
-    {
-      "arguments": "tabs",
-      "title": {
-        "en": "How to use tabs"
-      }
-    }
-  ],
   "Dependencies": {
     "api": "1.38.0",
     "views": "1.18.1"
   },
   "RequiredPermissions": [
     "http://maxcdn.bootstrapcdn.com",
-    "https://ajax.googleapis.com"
+    "https://ajax.googleapis.com",
+    "http://ws.audioscrobbler.com",
+    "https://cdnjs.cloudflare.com/"
   ],
   "SupportedLanguages": [
     "en"
