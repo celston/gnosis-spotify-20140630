@@ -24,6 +24,7 @@
   },
   "RequiredPermissions": [
     "http://maxcdn.bootstrapcdn.com",
+    "http://findgnosis.com",
     "http://developer.echonest.com",
     "https://ajax.googleapis.com",
     "http://ws.audioscrobbler.com",

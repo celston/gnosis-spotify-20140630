@@ -1,1 +1,13 @@
 <h2>Playlists</h2>
+
+<form role="form" ng-submit="submit()">
+
+    <div class="form-group">
+        <label for="selectedPlaylist">Source Playlist</label>
+        <select class="form-control" ng-model="selectedPlaylist" ng-options="playlist.name for playlist in currentPlaylists"></select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Generate</button>
+
+</form>
+

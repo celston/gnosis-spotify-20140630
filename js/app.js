@@ -44,8 +44,6 @@ app.controller('HomeController', ['$scope', '$http', function ($scope, $http) {
 app.controller('SearchController', ['$scope', '$http', 'echoNestService', 'spotifyViewsService', function ($scope, $http, echoNest, spotifyViews) {
     $scope.results = [];
 
-    $scope.artist = 'Bad Religion';
-
     $scope.search = function () {
         $scope.results = [];
 
