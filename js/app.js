@@ -6,9 +6,13 @@ app.config(['$routeProvider', '$compileProvider', function ($routeProvider, $com
             templateUrl: 'home.html',
             controller: 'HomeController'
         })
-        .when('/foo', {
-            templateUrl: 'foo.html',
-            controller: 'FooController'
+        .when('/search', {
+            templateUrl: 'search.html',
+            controller: 'SearchController'
+        })
+        .when('/playlists', {
+            templateUrl: 'playlists.html',
+            controller: 'PlaylistsController'
         })
         .when('/bar/:id', {
           templateUrl: 'bar.html',
@@ -21,33 +25,44 @@ app.config(['$routeProvider', '$compileProvider', function ($routeProvider, $com
             }
         });
 
-    $compileProvider.aHrefSanitizationWhitelist(/^\s*(https?|ftp|mailto|sp):/);
+    $compileProvider.aHrefSanitizationWhitelist(/^\s*(https?|ftp|mailto|sp|spotify):/);
 }]);
-
-app.controller('NavController', ['$scope', '$location', function ($scope, $location) {
-    $scope.tabs = [
-        {
-            text: 'Home',
-            path: 'home'
-        },
-        {
-            text: 'Foo',
-            path: 'foo'
-        }
-    ];
-    $scope.isActive = function (path) {
-        return $location.path() == '/' + path;
-    }
-}])
 
 app.controller('HomeController', ['$scope', '$http', function ($scope, $http) {
     $scope.recentTracks = [];
+    $scope.topArtists = [];
+
     $http.get('http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=celston&api_key=59d09be6bab770f89ca6eeb33ae2b266&format=json').success(function (data) {
         $scope.recentTracks = data.recenttracks.track;
     });
+
+    $http.get('http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user=celston&period=1month&limit=200&api_key=59d09be6bab770f89ca6eeb33ae2b266&format=json').success(function (data) {
+        $scope.topArtists = data.topartists.artist;
+    });
 }]);
 
-app.controller('FooController', ['$scope', function ($scope) {
+app.controller('SearchController', ['$scope', '$http', 'echoNestService', 'spotifyViewsService', function ($scope, $http, echoNest, spotifyViews) {
+    $scope.results = [];
+
+    $scope.artist = 'Bad Religion';
+
+    $scope.search = function () {
+        $scope.results = [];
+
+        echoNest.songSearch({
+            artist: $scope.artist,
+            title: $scope.title
+        }).success(function (data) {
+            var tracks = [];
+            angular.forEach(data.response.songs, function (song) {
+                angular.forEach(song.tracks, function (track) {
+                    tracks.push(track.foreign_id);
+                })
+            });
+
+            spotifyViews.createLoadAndDisplayTemporaryPlaylist(tracks, 'search_playlist');
+        });
+    }
 }]);
 
 app.controller('BarController', ['$scope', '$routeParams', function ($scope, $routeParams) {

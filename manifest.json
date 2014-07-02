@@ -24,6 +24,7 @@
   },
   "RequiredPermissions": [
     "http://maxcdn.bootstrapcdn.com",
+    "http://developer.echonest.com",
     "https://ajax.googleapis.com",
     "http://ws.audioscrobbler.com",
     "https://cdnjs.cloudflare.com/"
