@@ -8,7 +8,7 @@ app.factory('spotifyApiService', ['$q', function ($q) {
             library.forCurrentUser().playlists.snapshot().done(function (snapshot) {
                 var playlists = [];
                 var len = snapshot.length;
-                console.log(snapshot);
+
                 for (var i = 0; i < len; i++) {
                     playlists.push(snapshot.get(i));
                 }

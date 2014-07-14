@@ -9,5 +9,68 @@
 
     <button type="submit" class="btn btn-primary">Generate</button>
 
+    <div class="row">
+        <div class="col-md-4">
+            <h3>Source Tracks</h3>
+
+            <table class="table table-striped" ng-show="sourceTracks != null">
+                <thead>
+                    <tr>
+                        <th>Artist</th>
+                        <th>Name</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="track in sourceTracks">
+                        <td>{{track.artist}}</td>
+                        <td>{{track.name}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md-4">
+            <h3>Candidate Tracks</h3>
+
+            <table class="table table-striped" ng-show="candidateTracks != null">
+                <thead>
+                    <tr>
+                        <th>Artist</th>
+                        <th>Name</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="track in candidateTracks | orderBy : 'score' : true">
+                        <td><a href="spotify:search:artist:%22{{track.artist}}%22">{{track.artist}}</a></td>
+                        <td><a href="spotify:search:{{track.artist}} {{track.name}}">{{track.name}}</a></td>
+                        <td>{{track.score}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md-4">
+            <h3>Recommended Tracks</h3>
+
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Artist</th>
+                        <th>Name</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="track in recommendedTracks">
+                        <td>{{track.artist}}</td>
+                        <td>{{track.name}}</td>
+                        <td>{{track.score}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+
 </form>
 
