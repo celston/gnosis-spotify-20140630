@@ -1,4 +1,4 @@
-app.controller('PlaylistsController', ['$scope', '$http', 'spotifyApiService', function ($scope, $http, spotifyApi) {
+app.controller('PlaylistsController', ['$scope', '$http', '$q', '$timeout', 'spotifyApiService', function ($scope, $http, $q, $timeout, spotifyApi) {
     spotifyApi.getCurrentUserPlaylists().then(function (playlists) {
         $scope.currentPlaylists = playlists;
     })
@@ -9,6 +9,12 @@ app.controller('PlaylistsController', ['$scope', '$http', 'spotifyApiService', f
     $scope.userTracks = {};
     $scope.recommendedTracks = null;
     $scope.rebuilding = false;
+    $scope.candidateTracksLoaded = 20;
+
+    $scope.foo = function() {
+        $scope.candidateTracksLoaded++;
+    }
+
 
     function processNextTrack() {
         if ($scope.queue.length > 0) {
@@ -49,82 +55,11 @@ app.controller('PlaylistsController', ['$scope', '$http', 'spotifyApiService', f
         }
     }
 
-    function processTrack(track) {
-        $http({
-            url: 'http://findgnosis.com/proxy/lastfm/track_getsimilar',
-            method: 'GET',
-            params: {
-                artist: track.artists[0].name,
-                track: track.name,
-                limit: 10
-            }
-        }).success(function (data) {
-            if (data.similartracks != null && data.similartracks.track != null) {
-                var list = [].concat(data.similartracks.track);
-
-                for (var i = 0; i < list.length; i++) {
-                    var similarTrack = {
-                        name: list[i].name,
-                        artist: list[i].artist != null ? list[i].artist.name : '',
-                        count: 1,
-                        score: parseFloat(list[i].match)
-                    };
-
-                    if (similarTrack.artist == '') {
-                        console.log(data.similartracks);
-                    }
-
-                    var found = false;
-                    for (var j = 0; j < $scope.candidateTracks.length; j++) {
-                        var candidateTrack = $scope.candidateTracks[j];
-                        if (similarTrack.name == candidateTrack.name && similarTrack.artist == candidateTrack.artist) {
-                            found = true;
-                            candidateTrack.count++;
-                            candidateTrack.score += parseFloat(similarTrack.score);
-                        }
-                    }
-
-                    if (!found) {
-                        for (var k = 0; k < $scope.sourceTracks.length; k++) {
-                            var sourceTrack = $scope.sourceTracks[k];
-                            if (similarTrack.artist == sourceTrack.artist && similarTrack.name == sourceTrack.name) {
-                                found = true;
-                            }
-                        }
-
-                        if (!found) {
-                            $scope.candidateTracks.push(similarTrack);
-
-                            if (!(similarTrack.artist in $scope.userTracks)) {
-                                $http({
-                                    url: 'http://findgnosis.com/proxy/lastfm/library_gettracks',
-                                    method: 'GET',
-                                    params: {
-                                        user: 'celston',
-                                        limit: 100,
-                                        artist: similarTrack.artist
-                                    }
-                                }).success(function (data) {
-                                    $scope.userTracks[similarTrack.artist] = data.tracks.track;
-                                });
-                            }
-                            else {
-                            }
-                        }
-                    }
-                }
-            }
-
-            processNextTrack();
-        }).error(function (data) {
-            processNextTrack();
-        })
-
-    }
-
     $scope.submit = function() {
         $scope.sourceTracks = [];
         $scope.candidateTracks = [];
+        $scope.candidateTracksLoading = true;
+        $scope.candidateTracksLoaded = 0;
 
         spotifyApi.getPlaylistTracks($scope.selectedPlaylist).then(function (tracks) {
             $scope.queue = tracks;
@@ -137,7 +72,117 @@ app.controller('PlaylistsController', ['$scope', '$http', 'spotifyApiService', f
                 });
             })
 
-            processNextTrack();
+            var promises = [];
+            $scope.candidateTracksLoading = true;
+            $scope.candidateTracksLoaded = 0;
+            $timeout(function () {
+                $scope.candidateTracksToBeLoaded = $scope.sourceTracks.length;
+            }, 0);
+
+            angular.forEach($scope.sourceTracks, function (sourceTrack) {
+                var deferred = $q.defer();
+                deferred.promise.then(function () {
+                    $scope.candidateTracksLoaded++;
+                })
+
+                $http({
+                    url: 'http://findgnosis.com/proxy/lastfm/track_getsimilar',
+                    method: 'GET',
+                    params: {
+                        artist: sourceTrack.artist,
+                        track: sourceTrack.name,
+                        limit: 10
+                    }
+                }).success(function (data) {
+                    deferred.resolve(data);
+                }).error(function (data) {
+                    deferred.resolve(null);
+                });
+
+                promises.push(deferred.promise);
+            })
+
+            $q.all(promises).then(function (allData) {
+                $scope.candidateTracks = [];
+                $scope.candidateTracksLoading = false;
+
+                angular.forEach(allData, function (data) {
+                    if (data == null) {
+                        return;
+                    }
+
+                    var list = [];
+
+                    if ('similartracks' in data) {
+                        if ('track' in data.similartracks) {
+                            if (Array.isArray(data.similartracks.track)) {
+                                list = data.similartracks.track.map(function (track) {
+                                    return {
+                                        name: track.name,
+                                        artist: track.artist.name,
+                                        count: 1,
+                                        score: parseFloat(track.match)
+                                    };
+                                });
+                            }
+                            else {
+                                console.log('check');
+                            }
+                        }
+                        else {
+                            console.log('check');
+                        }
+                    }
+                    else {
+                        console.log('check');
+                    }
+
+                    for (var i = 0; i < list.length; i++) {
+                        var similarTrack = list[i];
+
+                        var found = false;
+                        for (var j = 0; j < $scope.candidateTracks.length; j++) {
+                            var candidateTrack = $scope.candidateTracks[j];
+                            if (similarTrack.name == candidateTrack.name && similarTrack.artist == candidateTrack.artist) {
+                                found = true;
+                                candidateTrack.count++;
+                                candidateTrack.score += parseFloat(similarTrack.score);
+                            }
+                        }
+
+                        if (!found) {
+                            for (var k = 0; k < $scope.sourceTracks.length; k++) {
+                                var sourceTrack = $scope.sourceTracks[k];
+                                if (similarTrack.artist == sourceTrack.artist && similarTrack.name == sourceTrack.name) {
+                                    found = true;
+                                }
+                            }
+
+                            if (!found) {
+                                $scope.candidateTracks.push(similarTrack);
+
+                                /*
+                                if (!(similarTrack.artist in $scope.userTracks)) {
+                                    $http({
+                                        url: 'http://findgnosis.com/proxy/lastfm/library_gettracks',
+                                        method: 'GET',
+                                        params: {
+                                            user: 'celston',
+                                            limit: 100,
+                                            artist: similarTrack.artist
+                                        }
+                                    }).success(function (data) {
+                                        $scope.userTracks[similarTrack.artist] = data.tracks.track;
+                                    });
+                                }
+                                else {
+                                }
+                                */
+                            }
+                        }
+                    }
+                })
+            })
         })
     }
 }])

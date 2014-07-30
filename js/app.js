@@ -1,4 +1,4 @@
-var app = angular.module('gnosisApp', ['ngRoute']);
+var app = angular.module('gnosisApp', ['ngRoute', 'ui.bootstrap']);
 
 app.config(['$routeProvider', '$compileProvider', function ($routeProvider, $compileProvider) {
     $routeProvider

@@ -10,7 +10,7 @@
     <button type="submit" class="btn btn-primary">Generate</button>
 
     <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-6">
             <h3>Source Tracks</h3>
 
             <table class="table table-striped" ng-show="sourceTracks != null">
@@ -28,10 +28,14 @@
                 </tbody>
             </table>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
             <h3>Candidate Tracks</h3>
 
-            <table class="table table-striped" ng-show="candidateTracks != null">
+            <progressbar ng-show="candidateTracksLoading" value="candidateTracksLoaded" max="candidateTracksToBeLoaded">
+                {{candidateTracksLoaded}} / {{candidateTracksToBeLoaded}}
+            </progressbar>
+
+            <table class="table table-striped" ng-hide="candidateTracksLoading">
                 <thead>
                     <tr>
                         <th>Artist</th>
@@ -48,6 +52,7 @@
                 </tbody>
             </table>
         </div>
+        <!--
         <div class="col-md-4">
             <h3>Recommended Tracks</h3>
 
@@ -68,6 +73,7 @@
                 </tbody>
             </table>
         </div>
+        -->
     </div>
 
 
