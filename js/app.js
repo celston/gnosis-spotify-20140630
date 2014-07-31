@@ -20,7 +20,6 @@ app.config(['$routeProvider', '$compileProvider', function ($routeProvider, $com
         })
         .otherwise({
             redirectTo: function() {
-                console.log('check');
                 return '/home';
             }
         });
@@ -36,7 +35,13 @@ app.controller('HomeController', ['$scope', '$http', function ($scope, $http) {
         $scope.recentTracks = data.recenttracks.track;
     });
 
-    $http.get('http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user=celston&period=1month&limit=200&api_key=59d09be6bab770f89ca6eeb33ae2b266&format=json').success(function (data) {
+    var d = new Date();
+
+    $http({
+        url: 'http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user=celston&period=1month&limit=200&api_key=59d09be6bab770f89ca6eeb33ae2b266&format=json&cache=' + d.getTime(),
+        method: 'GET',
+        cache: false
+    }).success(function (data) {
         $scope.topArtists = data.topartists.artist;
     });
 }]);
@@ -74,7 +79,6 @@ app.run(function ($rootScope, $location) {
 
         function navigation() {
             var args = models.application.arguments;
-            console.log(args);
             if (args) {
                 var lastArg = args[args.length - 1];
                 if (lastArg !== 'index' && lastArg !== 'tabs') {
