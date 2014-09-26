@@ -1,0 +1,40 @@
+<h2>Group Similar Tracks</h2>
+
+<form role="form" ng-submit="submit()">
+
+    <div class="form-group">
+        <label for="sourcePlaylist">Source Playlist</label>
+        <select class="form-control" ng-model="sourcePlaylist" ng-options="playlist.name for playlist in userPlaylists"></select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Generate</button>
+</form>
+
+<progressbar ng-show="showProgressBar" value="progress * 100 / sourcePlaylistTrackCount" max="100">{{progress}} of {{sourcePlaylistTrackCount}}</progressbar>
+
+<div ng-repeat="group in groups | orderBy : 'tracks.length' : true">
+    <h3>Group {{$index + 1}}</h3>
+
+    <div class="row">
+        <div class="col-md-6">
+            <accordion close-others="false">
+                <accordion-group ng-repeat="track in group.tracks | orderBy : 'artist'" heading="{{track.artist}} - {{track.name}}">
+                    <div ng-repeat="similarTrack in track.similar">
+                        {{similarTrack.artist}} - {{similarTrack.name}}
+                    </div>
+                </accordion-group>
+            </accordion>
+        </div>
+        <div class="col-md-6">
+            <accordion close-others="false">
+                <accordion-group heading="Suggestions">
+                    <div ng-repeat="suggestion in group.suggestions | orderBy : 'score' : true">
+                        <a href="spotify:search:artist:%22{{suggestion.artist}}%22">{{suggestion.artist}}</a>
+                        -
+                        <a href="spotify:search:artist:%22{{suggestion.artist}}%22%20track:%22{{suggestion.name}}%22">{{suggestion.name}}</a>
+                    </div>
+                </accordion-group>
+            </accordion>
+        </div>
+    </div>
+</div>

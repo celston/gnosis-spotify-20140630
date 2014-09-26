@@ -14,6 +14,10 @@ app.config(['$routeProvider', '$compileProvider', function ($routeProvider, $com
             templateUrl: 'playlists.html',
             controller: 'PlaylistsController'
         })
+        .when('/groupSimilarTracks', {
+            templateUrl: 'groupSimilarTracks.html',
+            controller: 'GroupSimilarTracksController'
+        })
         .when('/bar/:id', {
           templateUrl: 'bar.html',
           controller: 'BarController'
@@ -27,24 +31,7 @@ app.config(['$routeProvider', '$compileProvider', function ($routeProvider, $com
     $compileProvider.aHrefSanitizationWhitelist(/^\s*(https?|ftp|mailto|sp|spotify):/);
 }]);
 
-app.controller('HomeController', ['$scope', '$http', function ($scope, $http) {
-    $scope.recentTracks = [];
-    $scope.topArtists = [];
 
-    $http.get('http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=celston&api_key=59d09be6bab770f89ca6eeb33ae2b266&format=json').success(function (data) {
-        $scope.recentTracks = data.recenttracks.track;
-    });
-
-    var d = new Date();
-
-    $http({
-        url: 'http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user=celston&period=1month&limit=200&api_key=59d09be6bab770f89ca6eeb33ae2b266&format=json&cache=' + d.getTime(),
-        method: 'GET',
-        cache: false
-    }).success(function (data) {
-        $scope.topArtists = data.topartists.artist;
-    });
-}]);
 
 app.controller('SearchController', ['$scope', '$http', 'echoNestService', 'spotifyViewsService', function ($scope, $http, echoNest, spotifyViews) {
     $scope.results = [];

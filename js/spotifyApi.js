@@ -37,5 +37,41 @@ app.factory('spotifyApiService', ['$q', function ($q) {
         return deferred.promise;
     }
 
+    service.addPlayerChangeEventListener = function (eventType, observer) {
+        require(['$api/models'], function (models) {
+            models.player.addEventListener(eventType, observer);
+        })
+    }
+
+    service.getModels = function () {
+        var deferred = $q.defer();
+
+        require(['$api/models'], function (models) {
+            deferred.resolve(models);
+        });
+
+        return deferred.promise;
+    }
+
+    service.getSearch = function () {
+        var deferred = $q.defer();
+
+        require(['$api/search'], function (search) {
+            deferred.resolve(search);
+        })
+
+        return deferred.promise;
+    }
+
+    service.getViewsList = function () {
+        var deferred = $q.defer();
+
+        require(['$views/list'], function (list) {
+            deferred.resolve(list.List);
+        })
+
+        return deferred.promise;
+    }
+
     return service;
 }])

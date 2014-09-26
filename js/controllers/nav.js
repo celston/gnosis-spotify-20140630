@@ -11,6 +11,10 @@ app.controller('NavController', ['$scope', '$location', function ($scope, $locat
         {
             text: 'Playlists',
             path: 'playlists'
+        },
+        {
+            text: 'Group Similar Tracks',
+            path: 'groupSimilarTracks'
         }
     ];
     $scope.isActive = function (path) {

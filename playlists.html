@@ -31,7 +31,7 @@
         <div class="col-md-6">
             <h3>Candidate Tracks</h3>
 
-            <progressbar ng-show="candidateTracksLoading" value="candidateTracksLoaded" max="candidateTracksToBeLoaded">
+            <progressbar ng-show="candidateTracksLoading" value="(candidateTracksLoaded * 100 / candidateTracksToBeLoaded)" max="100">
                 {{candidateTracksLoaded}} / {{candidateTracksToBeLoaded}}
             </progressbar>
 
