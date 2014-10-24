@@ -22,6 +22,10 @@ app.config(['$routeProvider', '$compileProvider', function ($routeProvider, $com
           templateUrl: 'bar.html',
           controller: 'BarController'
         })
+        .when('/history', {
+            templateUrl: 'history.html',
+            controller: 'HistoryController'
+        })
         .otherwise({
             redirectTo: function() {
                 return '/home';

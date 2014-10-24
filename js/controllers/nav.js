@@ -1,10 +1,6 @@
 app.controller('NavController', ['$scope', '$location', function ($scope, $location) {
     $scope.tabs = [
         {
-            text: 'Home',
-            path: 'home'
-        },
-        {
             text: 'Search',
             path: 'search'
         },
@@ -15,6 +11,10 @@ app.controller('NavController', ['$scope', '$location', function ($scope, $locat
         {
             text: 'Group Similar Tracks',
             path: 'groupSimilarTracks'
+        },
+        {
+            text: 'History',
+            path: 'history'
         }
     ];
     $scope.isActive = function (path) {

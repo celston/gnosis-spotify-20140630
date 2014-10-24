@@ -6,8 +6,10 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
     $scope.topArtists = [];
 
     $scope.currentTrackArtist = '';
+    $scope.currentTrackArtistUri = '';
     $scope.currentTrackName = '';
     $scope.currentTrackAlbum = '';
+    $scope.currentTrackAlbumUri = '';
 
     $scope.currentTrackSimilarIsLoading = false;
     $scope.currentTrackSimilarTracksFound = false;
@@ -15,6 +17,110 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
 
     $scope.currentTrackArtistTopTracksIsLoading = false;
     $scope.currentTrackUserArtistTopTracksIsLoading = false;
+
+    $scope.updateCurrentTrackArtistTopTracks = function () {
+        $scope.currentTrackArtistTopTracksIsLoading = true;
+
+        $http({
+            url: 'http://findgnosis.com/proxy/lastfm/artist.gettoptracks',
+            method: 'GET',
+            params: {
+                artist: $scope.currentTrackArtist
+            }
+        }).then(function (response) {
+            if (response.data.hasOwnProperty('toptracks') && response.data.toptracks.hasOwnProperty('track') && Array.isArray(response.data.toptracks.track)) {
+                createTemporaryPlaylist(function (loadedPlaylist) {
+                    spotifyApi.getSearch().then(function (search) {
+                        var promises = [];
+                        angular.forEach(response.data.toptracks.track, function (artistTopTrack) {
+                            var deferred = $q.defer();
+                            promises.push(deferred.promise);
+
+                            searchAndSnapshot(search, artistTopTrack.artist.name + ' ' + normalizeTrackName(artistTopTrack.name), 1, function (snapshotTracks) {
+                                deferred.resolve(snapshotTracks);
+                            })
+                        });
+
+                        $q.all(promises).then(function (allSnapshotTracks) {
+                            var addPromises = [];
+
+                            angular.forEach(allSnapshotTracks, function (snapshotTracks) {
+                                var deferred = $q.defer();
+                                addPromises.push(deferred.promise);
+
+                                loadedPlaylist.tracks.add(snapshotTracks).done(function () {
+                                    deferred.resolve();
+                                });
+                            });
+
+                            $q.all(addPromises).then(function () {
+                                displayPlaylist(loadedPlaylist, 'currentTrackArtistTopTracksPlaylist', ['ordinal', 'image', 'track', 'album', 'popularity'], function () {
+                                    $scope.currentTrackArtistTopTracksIsLoading = false;
+                                });
+                            })
+                        });
+                    });
+                })
+
+
+            }
+            $scope.currentTrackArtistTopTracksIsLoading = false;
+        })
+    }
+
+    $scope.updateCurrentTrackArtistUserTopTracks = function () {
+        $scope.currentTrackUserArtistTopTracksIsLoading = true;
+
+        $http({
+            url: 'http://ws.audioscrobbler.com/2.0/',
+            method: 'GET',
+            params: {
+                api_key: '59d09be6bab770f89ca6eeb33ae2b266',
+                format: 'json',
+                method: 'library.gettracks',
+                user: 'celston',
+                limit: 250,
+                artist: $scope.currentTrackArtist
+            }
+        }).success(function (data) {
+            if (data.hasOwnProperty('tracks') && data.tracks.hasOwnProperty('track') && Array.isArray(data.tracks.track)) {
+                data.tracks.track.sort(function (a, b) {
+                    return b.playcount - a.playcount;
+                })
+                createTemporaryPlaylist(function (loadedPlaylist) {
+                    spotifyApi.getSearch().then(function (search) {
+                        var promises = [];
+                        angular.forEach(data.tracks.track, function (libraryTrack) {
+                            var deferred = $q.defer();
+                            promises.push(deferred.promise);
+
+                            searchAndSnapshot(search, libraryTrack.artist.name + ' ' + normalizeTrackName(libraryTrack.name), 1, function (snapshotTracks) {
+                                deferred.resolve(snapshotTracks);
+                            })
+                        });
+
+                        $q.all(promises).then(function (allSnapshotTracks) {
+                            var addPromises = [];
+
+                            angular.forEach(allSnapshotTracks, function (snapshotTracks) {
+                                var deferred = $q.defer();
+                                addPromises.push(deferred.promise);
+                                loadedPlaylist.tracks.add(snapshotTracks).done(function () {
+                                    deferred.resolve();
+                                });
+                            })
+
+                            $q.all(addPromises).then(function () {
+                                displayPlaylist(loadedPlaylist, 'currentTrackUserArtistTopTracksPlaylist', ['ordinal', 'image', 'track', 'album', 'popularity'], function () {
+                                    $scope.currentTrackUserArtistTopTracksIsLoading = false;
+                                });
+                            })
+                        });
+                    });
+                })
+            }
+        });
+    }
 
     function normalizeTrackName(trackName) {
         return trackName
@@ -36,12 +142,12 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
         })
     }
 
-    function displayPlaylist(loadedPlaylist, elementId, callback) {
+    function displayPlaylist(loadedPlaylist, elementId, fields, callback) {
         spotifyApi.getViewsList().then(function (List) {
             var list = List.forPlaylist(
                 loadedPlaylist,
                 {
-                    fields: ['track', 'artist', 'album']
+                    fields: fields
                 }
             );
             var e = document.getElementById(elementId);
@@ -75,155 +181,85 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
     }
 
     function searchAndSnapshot(search, query, limit, callback) {
-        search.Search.search(query).tracks.snapshot(0, limit).done(function (snapshot) {
-            snapshot.loadAll().done(function (snapshotTracks) {
-                callback(snapshotTracks);
+        search.Search.search(query).tracks.snapshot(0, limit)
+            .done(function (snapshot) {
+                snapshot.loadAll().done(function (snapshotTracks) {
+                    callback(snapshotTracks);
+                })
             })
-        });
+            .fail(function () {
+                callback([]);
+            });
     }
 
     function updateCurrentTrack(track) {
-        spotifyApi.getModels().then(function (models) {
-            models.Album.fromURI(track.album.uri).load('name').done(function (album) {
-                $scope.currentTrackAlbum = album.name;
-            })
-        })
+        var currentTrackArtist = track.artists.map(function (artist) { return artist.name; }).join(', ')
+        var currentTrackName = normalizeTrackName(track.name);
 
-        $scope.currentTrackArtist = track.artists.map(function (artist) { return artist.name; }).join(', ');
-        $scope.currentTrackName = normalizeTrackName(track.name);
-        $scope.currentTrackSimilarIsLoading = true;
-        $scope.currentTrackArtistTopTracksIsLoading = true;
-        $scope.currentTrackUserArtistTopTracksIsLoading = true;
+        if ($scope.currentTrackArtist != currentTrackArtist || $scope.currentTrackName != currentTrackName) {
+            if ($scope.currentTrackArtist != currentTrackArtist) {
+                $scope.currentTrackArtist = currentTrackArtist;
+                $scope.currentTrackArtistUri = track.artists.map(function (artist) { return artist.uri; })[0];
 
-        lastfmTrackGetSimilar($scope.currentTrackArtist, $scope.currentTrackName).then(function (similarTracks) {
-            if (Array.isArray(similarTracks)) {
-                createTemporaryPlaylist(function (loadedPlaylist) {
-                    spotifyApi.getSearch().then(function (search) {
-                        var promises = [];
+                $scope.updateCurrentTrackArtistTopTracks();
+                $scope.updateCurrentTrackArtistUserTopTracks();
+            }
 
-                        angular.forEach(similarTracks.slice(0, 10), function (similarTrack) {
-                            var deferred = $q.defer();
-                            promises.push(deferred.promise);
+            $scope.currentTrackName = currentTrackName;
+            $scope.currentTrackSimilarIsLoading = true;
+            lastfmTrackGetSimilar($scope.currentTrackArtist, $scope.currentTrackName).then(function (similarTracks) {
+                if (Array.isArray(similarTracks)) {
+                    createTemporaryPlaylist(function (loadedPlaylist) {
+                        spotifyApi.getSearch().then(function (search) {
+                            var promises = [];
 
-                            search.Search.search(similarTrack.artist.name + ' ' + similarTrack.name).tracks.snapshot(0, 2).done(function (snapshot) {
-                                snapshot.loadAll().done(function (snapshotTracks) {
-                                    deferred.resolve(snapshotTracks);
-                                })
-
-                            });
-                        })
-
-                        $q.all(promises).then(function (allSnapshotTracks) {
-                            var addPromises = [];
-
-                            angular.forEach(allSnapshotTracks, function (snapshotTracks) {
+                            angular.forEach(similarTracks.slice(0, 10), function (similarTrack) {
                                 var deferred = $q.defer();
-                                addPromises.push(deferred.promise);
-                                loadedPlaylist.tracks.add(snapshotTracks).done(function () {
-                                    deferred.resolve();
+                                promises.push(deferred.promise);
+
+                                search.Search.search(similarTrack.artist.name + ' ' + similarTrack.name).tracks.snapshot(0, 2).done(function (snapshot) {
+                                    snapshot.loadAll().done(function (snapshotTracks) {
+                                        deferred.resolve(snapshotTracks);
+                                    })
+
                                 });
                             })
 
-                            $q.all(addPromises).then(function () {
-                                displayPlaylist(loadedPlaylist, 'currentTrackSimilarPlaylist', function () {
-                                    $scope.currentTrackUserArtistTopTracksIsLoading = false;
-                                });
+                            $q.all(promises).then(function (allSnapshotTracks) {
+                                var addPromises = [];
+
+                                angular.forEach(allSnapshotTracks, function (snapshotTracks) {
+                                    var deferred = $q.defer();
+                                    addPromises.push(deferred.promise);
+                                    loadedPlaylist.tracks.add(snapshotTracks).done(function () {
+                                        deferred.resolve();
+                                    });
+                                })
+
+                                $q.all(addPromises).then(function () {
+                                    displayPlaylist(loadedPlaylist, 'currentTrackSimilarPlaylist', ['ordinal', 'image', 'track', 'artist', 'album', 'popularity'], function () {
+                                        $scope.currentTrackUserArtistTopTracksIsLoading = false;
+                                    });
+                                })
                             })
                         })
                     })
+
+                    $scope.currentTrackSimilarFound = true;
+                }
+                else {
+                    $scope.currentTrackSimilarFound = false;
+                }
+                $scope.currentTrackSimilarIsLoading = false;
+            })
+
+            spotifyApi.getModels().then(function (models) {
+                $scope.currentTrackAlbumUri = track.album.uri;
+                models.Album.fromURI(track.album.uri).load('name').done(function (album) {
+                    $scope.currentTrackAlbum = album.name;
                 })
-
-                $scope.currentTrackSimilarFound = true;
-            }
-            else {
-                $scope.currentTrackSimilarFound = false;
-            }
-            $scope.currentTrackSimilarIsLoading = false;
-        })
-
-        $http({
-            url: 'http://findgnosis.com/proxy/lastfm/artist.gettoptracks',
-            method: 'GET',
-            params: {
-                artist: $scope.currentTrackArtist
-            }
-        }).then(function (response) {
-            if (response.data.hasOwnProperty('toptracks') && response.data.toptracks.hasOwnProperty('track') && Array.isArray(response.data.toptracks.track)) {
-                createTemporaryPlaylist(function (loadedPlaylist) {
-                    spotifyApi.getSearch().then(function (search) {
-                        var promises = [];
-                        angular.forEach(response.data.toptracks.track.slice(0, 10), function (artistTopTrack) {
-                            var deferred = $q.defer();
-                            promises.push(deferred.promise);
-
-                            searchAndSnapshot(search, artistTopTrack.artist.name + ' ' + normalizeTrackName(artistTopTrack.name), 2, function (snapshotTracks) {
-                                loadedPlaylist.tracks.add(snapshotTracks);
-                                deferred.resolve();
-                            })
-                        });
-
-                        $q.all(promises).then(function () {
-                            displayPlaylist(loadedPlaylist, 'currentTrackArtistTopTracksPlaylist', function () {
-                                $scope.currentTrackArtistTopTracksIsLoading = false;
-                            });
-                        });
-                    });
-                })
-
-
-            }
-            $scope.currentTrackArtistTopTracksIsLoading = false;
-        })
-
-        $http({
-            url: 'http://ws.audioscrobbler.com/2.0/',
-            method: 'GET',
-            params: {
-                api_key: '59d09be6bab770f89ca6eeb33ae2b266',
-                format: 'json',
-                method: 'library.gettracks',
-                user: 'celston',
-                limit: 250,
-                artist: $scope.currentTrackArtist
-            }
-        }).success(function (data) {
-            if (data.hasOwnProperty('tracks') && data.tracks.hasOwnProperty('track') && Array.isArray(data.tracks.track)) {
-                data.tracks.track.sort(function (a, b) {
-                    return b.playcount - a.playcount;
-                })
-                createTemporaryPlaylist(function (loadedPlaylist) {
-                    spotifyApi.getSearch().then(function (search) {
-                        var promises = [];
-                        angular.forEach(data.tracks.track.slice(0, 20), function (libraryTrack) {
-                            var deferred = $q.defer();
-                            promises.push(deferred.promise);
-
-                            searchAndSnapshot(search, libraryTrack.artist.name + ' ' + normalizeTrackName(libraryTrack.name), 2, function (snapshotTracks) {
-                                deferred.resolve(snapshotTracks);
-                            })
-                        });
-
-                        $q.all(promises).then(function (allSnapshotTracks) {
-                            var addPromises = [];
-
-                            angular.forEach(allSnapshotTracks, function (snapshotTracks) {
-                                var deferred = $q.defer();
-                                addPromises.push(deferred.promise);
-                                loadedPlaylist.tracks.add(snapshotTracks).done(function () {
-                                    deferred.resolve();
-                                });
-                            })
-
-                            $q.all(addPromises).then(function () {
-                                displayPlaylist(loadedPlaylist, 'currentTrackUserArtistTopTracksPlaylist', function () {
-                                    $scope.currentTrackUserArtistTopTracksIsLoading = false;
-                                });
-                            })
-                        });
-                    });
-                })
-            }
-        });
+            });
+        }
     }
 
     function updateRecentTracks() {
@@ -264,11 +300,11 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
                     spotifyApi.getSearch().then(function (search) {
                         var promises2 = [];
 
-                        angular.forEach(result.slice(0, 10), function (similarTrack) {
+                        angular.forEach(result.slice(0, 20), function (similarTrack) {
                             var deferred = $q.defer();
                             promises2.push(deferred.promise);
 
-                            search.Search.search(similarTrack.artist.name + ' ' + similarTrack.name).tracks.snapshot(0, 2).done(function (snapshot) {
+                            search.Search.search(similarTrack.artist.name + ' ' + similarTrack.name).tracks.snapshot(0, 1).done(function (snapshot) {
                                 snapshot.loadAll().done(function (snapshotTracks) {
                                     loadedPlaylist.tracks.add(snapshotTracks);
                                     deferred.resolve();
@@ -277,7 +313,7 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
                         })
 
                         $q.all(promises2).then(function () {
-                            displayPlaylist(loadedPlaylist, 'recentTracksSimilarPlaylist', function () {
+                            displayPlaylist(loadedPlaylist, 'recentTracksSimilarPlaylist', ['ordinal', 'image', 'track', 'artist', 'album'], function () {
                                 $scope.recentTracksSimilarIsLoading = false;
                             });
                         })
