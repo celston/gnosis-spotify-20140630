@@ -1,4 +1,4 @@
-app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', function ($scope, $http, $q, spotifyApi) {
+app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 'utilityService', function ($scope, $http, $q, spotifyApi, utility) {
     $scope.recentTracks = [];
     $scope.recentTracksSimilarIsLoading = false;
     $scope.recentTracksSimilarError = '';
@@ -18,6 +18,18 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
     $scope.currentTrackArtistTopTracksIsLoading = false;
     $scope.currentTrackUserArtistTopTracksIsLoading = false;
 
+    spotifyApi.loadStarredTracksIndex().then(function () {
+        console.log('loadStarredTracksIndex');
+        console.log(spotifyApi.starredTracksIndex);
+
+        spotifyApi.getModels().then(function (models) {
+            models.player.load('track').done(function (player) {
+                updateCurrentTrack(player.track);
+                updateRecentTracks();
+            })
+        })
+    });
+
     $scope.updateCurrentTrackArtistTopTracks = function () {
         $scope.currentTrackArtistTopTracksIsLoading = true;
 
@@ -36,9 +48,14 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
                             var deferred = $q.defer();
                             promises.push(deferred.promise);
 
-                            searchAndSnapshot(search, artistTopTrack.artist.name + ' ' + normalizeTrackName(artistTopTrack.name), 1, function (snapshotTracks) {
-                                deferred.resolve(snapshotTracks);
-                            })
+                            spotifyApi.searchAndSnapshot(search, artistTopTrack.artist.name, artistTopTrack.name, 1).then(
+                                function (snapshotTracks) {
+                                    deferred.resolve(snapshotTracks);
+                                }),
+                                function () {
+                                    console.log('Failed search')
+                                    deferred.resolve([]);
+                                }
                         });
 
                         $q.all(promises).then(function (allSnapshotTracks) {
@@ -48,9 +65,14 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
                                 var deferred = $q.defer();
                                 addPromises.push(deferred.promise);
 
-                                loadedPlaylist.tracks.add(snapshotTracks).done(function () {
-                                    deferred.resolve();
-                                });
+                                loadedPlaylist.tracks.add(snapshotTracks)
+                                    .done(function () {
+                                        deferred.resolve();
+                                    })
+                                    .fail(function() {
+                                        console.log('Failed to add tracks');
+                                        deferred.resolve();
+                                    });
                             });
 
                             $q.all(addPromises).then(function () {
@@ -83,23 +105,34 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
                 artist: $scope.currentTrackArtist
             }
         }).success(function (data) {
+            console.log('check 1');
+            console.log(data);
             if (data.hasOwnProperty('tracks') && data.tracks.hasOwnProperty('track') && Array.isArray(data.tracks.track)) {
+                console.log('check 2');
                 data.tracks.track.sort(function (a, b) {
                     return b.playcount - a.playcount;
                 })
                 createTemporaryPlaylist(function (loadedPlaylist) {
+                    console.log('check 1');
                     spotifyApi.getSearch().then(function (search) {
                         var promises = [];
                         angular.forEach(data.tracks.track, function (libraryTrack) {
                             var deferred = $q.defer();
                             promises.push(deferred.promise);
 
-                            searchAndSnapshot(search, libraryTrack.artist.name + ' ' + normalizeTrackName(libraryTrack.name), 1, function (snapshotTracks) {
-                                deferred.resolve(snapshotTracks);
-                            })
+                            spotifyApi.searchAndSnapshot(search, libraryTrack.artist.name, libraryTrack.name, 1).then(
+                                function (snapshotTracks) {
+                                    deferred.resolve(snapshotTracks);
+                                }),
+                                function () {
+                                    console.log('Failed search...');
+                                    deferred.resolve([]);
+                                }
                         });
+                        console.log(promises.length);
 
                         $q.all(promises).then(function (allSnapshotTracks) {
+                            console.log('check 1');
                             var addPromises = [];
 
                             angular.forEach(allSnapshotTracks, function (snapshotTracks) {
@@ -119,6 +152,8 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
                     });
                 })
             }
+        }).error(function () {
+            console.log('mrah');
         });
     }
 
@@ -178,18 +213,6 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
             .catch(function () {
                 return null;
             })
-    }
-
-    function searchAndSnapshot(search, query, limit, callback) {
-        search.Search.search(query).tracks.snapshot(0, limit)
-            .done(function (snapshot) {
-                snapshot.loadAll().done(function (snapshotTracks) {
-                    callback(snapshotTracks);
-                })
-            })
-            .fail(function () {
-                callback([]);
-            });
     }
 
     function updateCurrentTrack(track) {
@@ -322,13 +345,6 @@ app.controller('HomeController', ['$scope', '$http', '$q', 'spotifyApiService', 
             })
         });
     }
-
-    spotifyApi.getModels().then(function (models) {
-        models.player.load('track').done(function (player) {
-            updateCurrentTrack(player.track);
-            updateRecentTracks();
-        })
-    })
 
     spotifyApi.addPlayerChangeEventListener('change', function (event) {
         $scope.$apply(function () {
